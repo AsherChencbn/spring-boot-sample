@@ -6,34 +6,20 @@ pipeline {
         checkout scm
       }
     }
-    stage('check env') {
-      parallel {
-        stage('check mvn') {
-          steps {
-            sh 'mvn -v'
-          }
-        }
-        stage('check java') {
-          steps {
-            sh 'java -version'
-          }
-        }
-      }
-    }
-
     stage('test') {
       steps {
-        sh 'mvn test cobertura:cobertura'
+        sh 'mvn cobertura:cobertura test'
       }
-    }      
-    stage('report') {
+    }
+    stage('Report') {
       parallel {
-        stage('junit') {
+        stage('Report') {
           steps {
-            junit '**/target/surefire-reports/TEST-*.xml'
+            junit 'target/surefire-reports/*.xml'
+            junit 'target/surefire-reports/*.xml'
           }
         }
-        stage('coverage') {
+        stage('Coverage') {
           steps {
             cobertura(coberturaReportFile: 'target/site/cobertura/coverage.xml')
           }
@@ -42,12 +28,18 @@ pipeline {
     }
     stage('package') {
       steps {
-        sh 'mvn package'
+        sh '''mvn package
+'''
       }
     }
-    stage('stage') {
+    stage('archive') {
+      steps {
+        archiveArtifacts 'target/*.jar'
+      }
+    }
+   stage('wait for confirm') {
         input {
-            message "Should we continue?"
+            message "Should we deploy?"
             ok "Yes, we should."
             submitter "admin"
             parameters {
@@ -56,41 +48,30 @@ pipeline {
         }
         steps {
             echo "Hello, ${PERSON}, nice to meet you."
-            sh 'make deploy-default'
         }
-    }
-    stage('preview') {
-        input {
-            message "Should we continue?"
-            ok "Yes, we should."
-            submitter "admin"
-        }
-        steps {
-          echo "every thing is good!"
-        }
-    }    
-    stage('artifact') {
-      steps {
-        archiveArtifacts(artifacts: '**/target/*.jar', fingerprint: true)
-      }
-    }
+    }  
+
     stage('deploy') {
       steps {
         sh 'make deploy-default'
       }
     }
   }
-  post { 
-    always { 
+  post {
+    always {
       echo 'I will always say Hello again!'
+
     }
-    success { 
+
+    success {
       echo 'success!'
-      // slackSend channel: '#integration', color: 'good', message: "success ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)", teamDomain: 'agileworks-tw', token: 'JhXFKEl6cBFoQ4v52BEJw9Mr'
-    }  
-    failure { 
-      echo 'failure!'
-      // slackSend channel: '#integration', color: 'danger', message: "fail ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)", teamDomain: 'agileworks-tw', token: 'JhXFKEl6cBFoQ4v52BEJw9Mr'
+
     }
-  }    
+
+    failure {
+      echo 'failure!'
+
+    }
+
+  }
 }
